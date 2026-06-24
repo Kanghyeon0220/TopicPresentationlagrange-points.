@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="slides-format" content="viewport">
+    <title>중력의 숨겨진 비밀 — 라그랑주 포인트</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <style type="text/tailwindcss">
+        @theme {
+            --color-bg: #0e1117;
+            --color-bg-deep: #070a0f;
+            --color-surface: #181e2a;
+            --color-text: #e8edf5;
+            --color-text-secondary: #9aa3b2;
+            --color-text-muted: #5a6272;
+            --color-accent-1: #c8d6e8;
+            --color-accent-2: #c8d6e8;
+            --color-accent-3: #c8d6e8;
+            --color-glass-bg: rgba(255,255,255,0.04);
+            --color-glass-border: rgba(200,214,232,0.18);
+            --color-vignette: rgba(0,0,0,0.4);
+            --font-display: 'Noto Serif KR', serif;
+            --font-body: 'Noto Sans KR', sans-serif;
+        }
+    </style>
+
+    <style>
+        :root { --color-bg: #0e1117; --color-text: #e8edf5; --glow-color-rgb: 200,214,232; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { background: var(--color-bg); margin: 0; }
+        body { font-family: 'Noto Sans KR', sans-serif; color: var(--color-text); overflow: hidden; height: 100vh; width: 100vw; }
+        .deck { width: 100vw; height: 100vh; position: relative; }
+        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--color-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transform: scale(0.95); transition: opacity 0.7s ease, transform 0.7s ease; pointer-events: none; overflow: hidden; }
+        .slide.active { opacity: 1; transform: scale(1); pointer-events: all; }
+        .slide > .content { position: relative; z-index: 2; width: 100%; max-width: 1100px; padding: clamp(1.5rem, 4vw, 4rem); }
+        .nav-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; z-index: 100; background: rgba(255,255,255,0.04); backdrop-filter: blur(10px); padding: 10px 24px; border-radius: 0; border: 1px solid rgba(200,214,232,0.15); }
+        .nav-btn { width: 40px; height: 40px; border: none; background: rgba(255,255,255,0.05); color: #c8d6e8; border-radius: 0; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
+        .nav-btn:hover { background: rgba(200,214,232,0.10); }
+        .slide-dots { display: flex; gap: 8px; }
+        .slide-dots .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(200,214,232,0.15); cursor: pointer; transition: background 0.3s, transform 0.3s; }
+        .slide-dots .dot.active { background: #c8d6e8; transform: scale(1.3); }
+        .slide-counter { font-size: 0.8rem; color: #5a6272; min-width: 40px; text-align: center; }
+        .reveal { opacity: 0; transform: translateY(20px); }
+
+        @keyframes float-slow { 0% { transform: translate(0,0) scale(1); } 25% { transform: translate(60px,-50px) scale(1.12); } 50% { transform: translate(-40px,40px) scale(0.9); } 75% { transform: translate(50px,20px) scale(1.08); } 100% { transform: translate(0,0) scale(1); } }
+        @keyframes float-drift { 0% { transform: translate(0,0) scale(1) rotate(0deg); } 33% { transform: translate(-50px,-60px) scale(1.15) rotate(3deg); } 66% { transform: translate(40px,30px) scale(0.88) rotate(-2deg); } 100% { transform: translate(0,0) scale(1) rotate(0deg); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes orbit { from { transform: rotate(0deg) translateX(110px) rotate(0deg); } to { transform: rotate(360deg) translateX(110px) rotate(-360deg); } }
+        @keyframes glow-pulse { 0%, 100% { text-shadow: 0 0 20px rgba(200,214,232,0.5), 0 0 40px rgba(200,214,232,0.2); } 50% { text-shadow: 0 0 30px rgba(200,214,232,0.9), 0 0 70px rgba(200,214,232,0.4); } }
+
+        .gradient-mesh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(80px); animation: float-slow 10s ease-in-out infinite; }
+        .blob:nth-child(2) { animation: float-drift 14s ease-in-out infinite; }
+        .blob:nth-child(3) { animation: float-slow 18s ease-in-out infinite reverse; }
+
+        .slide::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); background-repeat: repeat; background-size: 256px 256px; opacity: 0.03; mix-blend-mode: overlay; }
+        .slide::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at center, transparent 50%, var(--color-vignette) 100%); }
+
+        .glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
+
+        /* Orbit visual */
+        .orbit-system { position: relative; width: 260px; height: 260px; margin: 0 auto; }
+        .orbit-ring { position: absolute; inset: 0; border: 1px dashed rgba(200,214,232,0.25); border-radius: 50%; }
+        .orbit-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 56px; height: 56px; background: radial-gradient(circle at 40% 40%, #ffe066, #ff8c00, #c84b00); border-radius: 50%; box-shadow: none; }
+        .orbit-dot { position: absolute; width: 22px; height: 22px; border-radius: 50%; top: 50%; left: 50%; margin-left: -11px; margin-top: -11px; }
+        .orbit-dot::after { content: ''; display: block; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #6af, #1a6acc); box-shadow: none; transform-origin: 0 0; animation: orbit 6s linear infinite; }
+        /* L-point indicator dots */
+        .lp-dot { position: absolute; width: 11px; height: 11px; border-radius: 50%; top: 50%; left: 50%; }
+
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; } }
+    </style>
+</head>
+<body>
+
+<div class="mouse-spotlight" style="position:fixed;inset:0;z-index:99;pointer-events:none;"></div>
+
+<div class="deck">
+
+    <!-- SLIDE 1: TITLE -->
+    <div class="slide slide-1 active" data-slide="1">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:520px;height:520px;top:-110px;right:-130px;background:#c8d6e8;opacity:0.05;"></div>
+            <div class="blob" style="width:360px;height:360px;bottom:-90px;left:-70px;background:#c8d6e8;opacity:0.04;"></div>
+            <div class="blob" style="width:200px;height:200px;top:38%;left:10%;background:#c8d6e8;opacity:0.03;"></div>
+        </div>
+        <canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+        <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">
+            <div>
+                <div class="reveal" style="font-size:0.78rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.9rem;">Physics · Astronomy</div>
+                <h1 class="reveal" style="font-family:'Noto Serif KR',serif;font-size:clamp(3rem,6.5vw,5.2rem);line-height:1;color:#e8edf5;margin-bottom:1.2rem;">중력의<br>숨겨진<br>비밀</div>
+                <p class="reveal" style="font-size:clamp(0.95rem,1.8vw,1.25rem);color:#9aa3b2;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1.8rem;">Lagrange Points</p>
+                <div class="reveal" style="display:flex;gap:0.65rem;flex-wrap:wrap;align-items:center;">
+                    <span style="padding:0.35rem 1rem;border:1px solid rgba(200,214,232,0.3);border-radius:0;font-size:0.78rem;color:#c8d6e8;letter-spacing:0.05em;">L1 — L5</span>
+                    <span style="padding:0.35rem 1rem;border:1px solid rgba(200,214,232,0.3);border-radius:0;font-size:0.78rem;color:#c8d6e8;letter-spacing:0.05em;">JWST · NASA</span>
+                    <span style="padding:0.35rem 1rem;border:1px solid rgba(255,255,255,0.1);border-radius:0;font-size:0.78rem;color:#6b7fa8;">발표자: 김강현</span>
+                </div>
+            </div>
+            <div class="reveal" style="display:flex;flex-direction:column;align-items:center;gap:1.4rem;">
+                <div class="orbit-system">
+                    <div class="orbit-ring"></div>
+                    <div class="orbit-ring" style="inset:28px;border-color:rgba(200,214,232,0.18);"></div>
+                    <div class="orbit-center"></div>
+                    <div class="orbit-dot"></div>
+                    <!-- L1 -->
+                    <div class="lp-dot" style="background:#c8d6e8;box-shadow: none;transform:translate(calc(-50% + 76px),-50%);"></div>
+                    <!-- L2 -->
+                    <div class="lp-dot" style="background:#c8d6e8;box-shadow: none;transform:translate(calc(-50% - 88px),-50%);"></div>
+                    <!-- L4 -->
+                    <div class="lp-dot" style="background:#c8d6e8;box-shadow: none;transform:translate(calc(-50% + 56px),calc(-50% - 100px));"></div>
+                    <!-- L5 -->
+                    <div class="lp-dot" style="background:#c8d6e8;box-shadow: none;transform:translate(calc(-50% + 56px),calc(-50% + 100px));"></div>
+                    <!-- labels -->
+                    <span style="position:absolute;top:50%;left:50%;transform:translate(calc(-50% + 88px),-50%);font-size:0.62rem;color:#c8d6e8;font-weight:700;letter-spacing:0.05em;">L1</span>
+                    <span style="position:absolute;top:50%;left:50%;transform:translate(calc(-50% - 106px),-50%);font-size:0.62rem;color:#c8d6e8;font-weight:700;letter-spacing:0.05em;">L2</span>
+                    <span style="position:absolute;top:50%;left:50%;transform:translate(calc(-50% + 70px),calc(-50% - 116px));font-size:0.62rem;color:#c8d6e8;font-weight:700;">L4</span>
+                    <span style="position:absolute;top:50%;left:50%;transform:translate(calc(-50% + 70px),calc(-50% + 116px));font-size:0.62rem;color:#c8d6e8;font-weight:700;">L5</span>
+                </div>
+                <p style="font-size:0.72rem;color:#6b7fa8;text-align:center;letter-spacing:0.08em;text-transform:uppercase;">태양–지구 시스템의 라그랑주 점</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2: 중력이란? -->
+    <div class="slide slide-2" data-slide="2">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:400px;height:400px;top:-80px;left:-80px;background:#c8d6e8;opacity:0.08;"></div>
+            <div class="blob" style="width:300px;height:300px;bottom:-60px;right:-40px;background:#c8d6e8;opacity:0.03;"></div>
+        </div>
+        <div class="content">
+            <div class="reveal" style="font-size:0.75rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Gravity — 01</div>
+            <h2 class="reveal" style="font-family:'Noto Serif KR',serif;font-size:clamp(2.4rem,5vw,3.8rem);color:#e8edf5;margin-bottom:1.8rem;">중력이란 무엇인가?</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;margin-bottom:1.4rem;">
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.12);border-radius:14px;padding:1.6rem;border-left:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Newton, 1687</div>
+                    <div style="font-weight:700;margin-bottom:0.5rem;color:#f0f4ff;font-size:1rem;">만유인력의 법칙</div>
+                    <div style="font-size:0.88rem;color:#9aa3b2;line-height:1.7;">질량을 가진 모든 물체는 서로 끌어당긴다. 지구와 달, 태양과 행성 모두 이 힘으로 연결되어 있다.</div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.15);border-radius:14px;padding:1.6rem;border-left:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Key Concept</div>
+                    <div style="font-weight:700;margin-bottom:0.5rem;color:#f0f4ff;font-size:1rem;">원심력과의 균형</div>
+                    <div style="font-size:0.88rem;color:#9aa3b2;line-height:1.7;">공전하는 물체에는 밖으로 나가려는 원심력이 작용한다. 두 천체 사이에서 이 두 힘이 정확히 상쇄되는 지점이 생긴다.</div>
+                </div>
+            </div>
+            <div class="reveal" style="background:linear-gradient(135deg,rgba(200,214,232,0.07),rgba(200,214,232,0.07));border:1px solid rgba(200,214,232,0.18);border-radius:0;padding:1.1rem 1.5rem;">
+                <span style="font-weight:700;color:#c8d6e8;font-size:0.9rem;">핵심 아이디어</span>
+                <span style="color:#9aa3b2;font-size:0.9rem;"> — 두 천체 주변에는 중력이 완벽히 균형을 이루는 <strong style="color:#f0f4ff;">5개의 특별한 지점</strong>이 존재한다. 이것이 라그랑주 포인트다.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: 5개의 라그랑주 포인트 -->
+
+    <!-- SLIDE 3: 중력이 0이 된 실제 사례 (NEW) -->
+    <div class="slide slide-3" data-slide="3">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:420px;height:420px;top:-80px;left:-80px;background:#c8d6e8;opacity:0.06;"></div>
+            <div class="blob" style="width:300px;height:300px;bottom:-60px;right:-40px;background:#c8d6e8;opacity:0.04;"></div>
+        </div>
+        <div class="content">
+            <div class="reveal" style="font-size:0.75rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Real Cases — 02</div>
+            <h2 class="reveal" style="font-family:'Noto Serif KR',serif;font-size:clamp(2.2rem,4.5vw,3.4rem);color:#e8edf5;margin-bottom:1.5rem;">중력이 0이 된 실제 사례</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.1rem;margin-bottom:1.3rem;">
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:14px;padding:1.4rem;border-top:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Apollo 11 · 1969</div>
+                    <div style="font-weight:700;color:#f0f4ff;margin-bottom:0.55rem;font-size:0.95rem;">아폴로 11호의 중립점 통과</div>
+                    <div style="font-size:0.82rem;color:#9aa3b2;line-height:1.68;">달로 향하던 도중, 지구와 달의 중력이 정확히 상쇄되는 중립점을 통과했다. 이 순간 우주선은 어느 쪽 중력도 받지 않는 상태에 놓였다. 중립점은 지구에서 약 346,000 km 지점이었다.</div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:14px;padding:1.4rem;border-top:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">ISS · 현재 진행 중</div>
+                    <div style="font-weight:700;color:#f0f4ff;margin-bottom:0.55rem;font-size:0.95rem;">국제우주정거장 미소중력</div>
+                    <div style="font-size:0.82rem;color:#9aa3b2;line-height:1.68;">ISS는 초속 7.7 km로 자유낙하하며 궤도를 돈다. 이 때문에 내부에는 지구 중력의 10⁻⁶배에 불과한 미소중력 환경이 만들어진다. 2026년 국내 기업 스페이스린텍이 이 환경에서 단백질 결정 실험에 최초 성공했다.</div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:14px;padding:1.4rem;border-top:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Lagrange Point · 이론 & 현실</div>
+                    <div style="font-weight:700;color:#f0f4ff;margin-bottom:0.55rem;font-size:0.95rem;">라그랑주 포인트의 중력 균형</div>
+                    <div style="font-size:0.82rem;color:#9aa3b2;line-height:1.68;">태양과 지구의 중력이 정확히 상쇄되는 지점. 두 천체에서 받는 인력이 교묘하게 맞아떨어져 사실상 중력이 0인 환경이 형성된다. 현재 JWST를 포함한 여러 위성이 이 균형점에서 운용 중이다.</div>
+                </div>
+            </div>
+            <div class="reveal" style="background:linear-gradient(135deg,rgba(200,214,232,0.05),rgba(200,214,232,0.05));border:1px solid rgba(200,214,232,0.14);border-radius:0;padding:0.95rem 1.4rem;font-size:0.86rem;color:#9aa3b2;">
+                <strong style="color:#f0f4ff;">핵심:</strong> 중력이 0이 되는 것은 공상과학이 아니다. <strong style="color:#c8d6e8;">1969년부터 지금까지, 실제로 일어나고 있다.</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide slide-4" data-slide="4">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:380px;height:380px;top:-60px;right:-60px;background:#c8d6e8;opacity:0.10;"></div>
+            <div class="blob" style="width:280px;height:280px;bottom:-50px;left:-40px;background:#c8d6e8;opacity:0.08;"></div>
+        </div>
+        <canvas class="particle-canvas-ambient" style="position:absolute;inset:0;z-index:1;"></canvas>
+        <div class="content">
+            <div class="reveal" style="font-size:0.75rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Lagrange Points — 03</div>
+            <h2 class="reveal" style="font-family:'Noto Serif KR',serif;font-size:clamp(2.2rem,4.5vw,3.4rem);color:#e8edf5;margin-bottom:1.4rem;">5개의 라그랑주 포인트</h2>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.3rem;">
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:13px;padding:1rem 0.8rem;text-align:center;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#c8d6e8,#0096b8);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.82rem;margin:0 auto 0.6rem;color:#e8edf5;">L1</div>
+                    <div style="font-weight:700;font-size:0.82rem;margin-bottom:0.4rem;color:#f0f4ff;">두 천체 사이</div>
+                    <div style="font-size:0.73rem;color:#9aa3b2;line-height:1.55;margin-bottom:0.6rem;">태양과 지구 사이. 태양풍 및 자기장 연구에 활용</div>
+                    <div style="padding:0.22rem 0.45rem;background:rgba(200,214,232,0.08);border-radius:0;font-size:0.68rem;color:#9aa3b2;display:inline-block;">불안정</div>
+                </div>
+                <div class="reveal" style="background:linear-gradient(160deg,rgba(200,214,232,0.12),rgba(200,214,232,0.07));border:2px solid rgba(200,214,232,0.38);border-radius:13px;padding:1rem 0.8rem;text-align:center;position:relative;">
+                    <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:rgba(200,214,232,0.15);padding:0.14rem 0.65rem;border-radius:99px;font-size:0.62rem;font-weight:700;white-space:nowrap;color:#fff;letter-spacing:0.06em;">JWST</div>
+                    <div style="width:38px;height:38px;border-radius:50%;background:rgba(200,214,232,0.15);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.82rem;margin:0 auto 0.6rem;color:#fff;">L2</div>
+                    <div style="font-weight:700;font-size:0.82rem;margin-bottom:0.4rem;color:#f0f4ff;">지구 뒤편</div>
+                    <div style="font-size:0.73rem;color:#9aa3b2;line-height:1.55;margin-bottom:0.6rem;">지구에서 150만 km. 제임스 웹 망원경의 현재 위치</div>
+                    <div style="padding:0.22rem 0.45rem;background:rgba(200,214,232,0.08);border-radius:0;font-size:0.68rem;color:#9aa3b2;display:inline-block;">불안정</div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:13px;padding:1rem 0.8rem;text-align:center;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:rgba(200,214,232,0.15);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.82rem;margin:0 auto 0.6rem;color:#fff;">L3</div>
+                    <div style="font-weight:700;font-size:0.82rem;margin-bottom:0.4rem;color:#f0f4ff;">태양 반대편</div>
+                    <div style="font-size:0.73rem;color:#9aa3b2;line-height:1.55;margin-bottom:0.6rem;">태양 너머 지구 반대편. 영구적으로 관측 불가능</div>
+                    <div style="padding:0.22rem 0.45rem;background:rgba(200,214,232,0.08);border-radius:0;font-size:0.68rem;color:#9aa3b2;display:inline-block;">불안정</div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:13px;padding:1rem 0.8rem;text-align:center;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:rgba(200,214,232,0.15);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.82rem;margin:0 auto 0.6rem;color:#e8edf5;">L4</div>
+                    <div style="font-weight:700;font-size:0.82rem;margin-bottom:0.4rem;color:#f0f4ff;">궤도 앞쪽 60°</div>
+                    <div style="font-size:0.73rem;color:#9aa3b2;line-height:1.55;margin-bottom:0.6rem;">트로이 소행성군이 자연적으로 모이는 지점</div>
+                    <div style="padding:0.22rem 0.45rem;background:rgba(200,214,232,0.10);border-radius:0;font-size:0.68rem;color:#c8d6e8;display:inline-block;">안정</div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:13px;padding:1rem 0.8rem;text-align:center;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:rgba(200,214,232,0.15);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.82rem;margin:0 auto 0.6rem;color:#e8edf5;">L5</div>
+                    <div style="font-weight:700;font-size:0.82rem;margin-bottom:0.4rem;color:#f0f4ff;">궤도 뒤쪽 60°</div>
+                    <div style="font-size:0.73rem;color:#9aa3b2;line-height:1.55;margin-bottom:0.6rem;">L4와 함께 가장 안정적. 연료 소모 거의 없음</div>
+                    <div style="padding:0.22rem 0.45rem;background:rgba(200,214,232,0.10);border-radius:0;font-size:0.68rem;color:#c8d6e8;display:inline-block;">안정</div>
+                </div>
+            </div>
+            <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div style="background:rgba(200,214,232,0.06);border:1px solid rgba(200,214,232,0.18);border-radius:10px;padding:0.8rem 1rem;font-size:0.82rem;color:#9aa3b2;">
+                    <strong style="color:#9aa3b2;">L1, L2, L3 — 불안정:</strong> 조금만 벗어나도 궤도 이탈. 연료로 주기적 보정이 필요하다.
+                </div>
+                <div style="background:rgba(200,214,232,0.06);border:1px solid rgba(200,214,232,0.18);border-radius:10px;padding:0.8rem 1rem;font-size:0.82rem;color:#9aa3b2;">
+                    <strong style="color:#c8d6e8;">L4, L5 — 안정:</strong> 중력이 스스로 원래 위치로 되돌려준다. 장기 체류에 이상적이다.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4: JWST -->
+    <div class="slide slide-5" data-slide="5">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:480px;height:480px;top:-100px;right:-100px;background:#c8d6e8;opacity:0.04;"></div>
+            <div class="blob" style="width:320px;height:320px;bottom:-70px;left:-50px;background:#c8d6e8;opacity:0.10;"></div>
+        </div>
+        <canvas class="particle-canvas-ambient" style="position:absolute;inset:0;z-index:1;"></canvas>
+        <div class="content">
+            <div class="reveal" style="font-size:0.75rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">James Webb Space Telescope — 05</div>
+            <h2 class="reveal" style="font-family:'Noto Serif KR',serif;font-size:clamp(2rem,4.2vw,3.3rem);color:#e8edf5;margin-bottom:1.3rem;">L2에 자리잡은 제임스 웹 망원경</h2>
+            <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:1.4rem;align-items:start;">
+                <div>
+                    <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.2);border-radius:14px;padding:1.3rem;margin-bottom:1rem;">
+                        <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Why L2?</div>
+                        <div style="font-weight:700;color:#f0f4ff;font-size:0.93rem;margin-bottom:0.5rem;">왜 하필 L2 포인트인가?</div>
+                        <div style="font-size:0.83rem;color:#9aa3b2;line-height:1.7;">JWST는 적외선(열) 망원경이기 때문에 자체 온도를 반드시 –233°C 이하로 유지해야 한다. L2에 위치하면 태양·지구·달이 항상 한 방향에 놓이므로, 테니스 코트 크기의 차양막 하나로 세 천체의 열을 동시에 차단할 수 있다.</div>
+                    </div>
+                    <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.18);border-radius:14px;padding:1.3rem;">
+                        <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Achievement</div>
+                        <div style="font-weight:700;color:#f0f4ff;font-size:0.93rem;margin-bottom:0.5rem;">무엇을 발견했나?</div>
+                        <div style="font-size:0.83rem;color:#9aa3b2;line-height:1.7;">2022년 첫 이미지 공개 이후 빅뱅 이후 불과 3억 년 뒤에 형성된 초기 은하를 포착했다. 외계행성 대기에서 수증기·이산화탄소·메탄을 동시에 검출해 생명 거주 가능성 연구의 새 장을 열었다.</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="reveal" style="background:linear-gradient(160deg,rgba(200,214,232,0.1),rgba(200,214,232,0.08));border:1px solid rgba(200,214,232,0.25);border-radius:14px;padding:1.3rem;margin-bottom:1rem;">
+                        <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.8rem;">Specs</div>
+                        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:0.5rem;">
+                                <span style="font-size:0.78rem;color:#9aa3b2;">주경 지름</span>
+                                <span style="font-weight:700;color:#f0f4ff;font-size:0.88rem;">6.5 m</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:0.5rem;">
+                                <span style="font-size:0.78rem;color:#9aa3b2;">지구–L2 거리</span>
+                                <span style="font-weight:700;color:#f0f4ff;font-size:0.88rem;">150만 km</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:0.5rem;">
+                                <span style="font-size:0.78rem;color:#9aa3b2;">운용 온도</span>
+                                <span style="font-weight:700;color:#c8d6e8;font-size:0.88rem;">–233°C 이하</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:0.5rem;">
+                                <span style="font-size:0.78rem;color:#9aa3b2;">발사일</span>
+                                <span style="font-weight:700;color:#f0f4ff;font-size:0.88rem;">2021. 12. 25</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-size:0.78rem;color:#9aa3b2;">총 개발 비용</span>
+                                <span style="font-weight:700;color:#c8d6e8;font-size:0.88rem;">약 100억 달러</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="reveal" style="background:rgba(200,214,232,0.05);border:1px solid rgba(200,214,232,0.15);border-radius:0;padding:0.9rem 1.1rem;font-size:0.8rem;color:#9aa3b2;line-height:1.6;">
+                        허블 망원경보다 집광 능력이 <strong style="color:#c8d6e8;">약 7배</strong> 높다. 허블이 보지 못한 우주의 초기 모습을 관측한다.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- SLIDE 5: 진로 연결 -->
+    <div class="slide slide-6" data-slide="6">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:450px;height:450px;top:-80px;right:-80px;background:#c8d6e8;opacity:0.08;"></div>
+            <div class="blob" style="width:300px;height:300px;bottom:-50px;left:-40px;background:#c8d6e8;opacity:0.03;"></div>
+            <div class="blob" style="width:200px;height:200px;top:40%;left:8%;background:#c8d6e8;opacity:0.06;"></div>
+        </div>
+        <div class="content">
+            <div class="reveal" style="font-size:0.75rem;letter-spacing:0.22em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.5rem;">Application &amp; Career — 06</div>
+            <h2 class="reveal" style="font-family:'Noto Serif KR',serif;font-size:clamp(2rem,4.2vw,3.2rem);color:#e8edf5;margin-bottom:0.5rem;">라그랑주 포인트 × 생명과학</h2>
+            <p class="reveal" style="font-size:0.85rem;color:#6b7fa8;margin-bottom:1.3rem;letter-spacing:0.04em;">미소중력(microgravity) 환경은 지상에서 불가능한 연구를 가능하게 한다</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;">
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.22);border-radius:16px;padding:1.4rem;border-top:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.6rem;">Pharmacy · L2 &amp; Future Stations</div>
+                    <div style="font-weight:700;color:#f0f4ff;margin-bottom:0.6rem;font-size:0.95rem;">우주 약학 연구</div>
+                    <div style="font-size:0.83rem;color:#9aa3b2;line-height:1.68;margin-bottom:0.8rem;">미소중력 환경에서는 단백질 결정이 지상보다 균일하게 성장한다. 이를 이용해 기존보다 효능이 높은 신약을 개발할 수 있다. 2024년 BardSpace Industries는 실제로 HIV 치료제 리토나비르를 우주에서 합성해 지구로 가져오는 데 성공했다.</div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:99px;background:rgba(200,214,232,0.12);color:#c8d6e8;">단백질 결정화</span>
+                        <span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:99px;background:rgba(200,214,232,0.12);color:#c8d6e8;">신약 개발</span>
+                        <span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:99px;background:rgba(200,214,232,0.12);color:#c8d6e8;">2030년 시장 규모 $10B+</span>
+                    </div>
+                </div>
+                <div class="reveal" style="background:rgba(255,255,255,0.03);border:1px solid rgba(200,214,232,0.22);border-radius:16px;padding:1.4rem;border-top:3px solid #c8d6e8;">
+                    <div style="font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#c8d6e8;margin-bottom:0.6rem;">Veterinary Medicine · ISS &amp; L4/L5</div>
+                    <div style="font-weight:700;color:#f0f4ff;margin-bottom:0.6rem;font-size:0.95rem;">우주 수의학 연구</div>
+                    <div style="font-size:0.83rem;color:#9aa3b2;line-height:1.68;margin-bottom:0.8rem;">ISS에는 현재 쥐·선충·물고기 등 동물 실험이 진행 중이다. 수의사는 우주 비행이 동물의 뼈·근육·면역계에 미치는 영향을 분석하며, 이 데이터는 우주인의 건강 유지와 미래 화성 농업 동물 관리에 직결된다.</div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:99px;background:rgba(200,214,232,0.10);color:#c8d6e8;">동물 생리학</span>
+                        <span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:99px;background:rgba(200,214,232,0.10);color:#c8d6e8;">근골격 연구</span>
+                        <span style="font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:99px;background:rgba(200,214,232,0.10);color:#c8d6e8;">NASA 수의사 채용 중</span>
+                    </div>
+                </div>
+            </div>
+            <div class="reveal" style="background:linear-gradient(135deg,rgba(200,214,232,0.05),rgba(200,214,232,0.05));border:1px solid rgba(200,214,232,0.14);border-radius:0;padding:0.95rem 1.4rem;font-size:0.86rem;color:#9aa3b2;">
+                <strong style="color:#f0f4ff;">결론:</strong> 라그랑주 포인트에 건설될 우주정거장은 단순한 천문 관측지가 아니다. 약학·수의학 연구의 <strong style="color:#c8d6e8;">미래 실험실</strong>이 될 것이다.
+            </div>
+        </div>
+    </div>
+
+        <!-- SLIDE 6: 마무리 -->
+    <div class="slide slide-7" data-slide="7">
+        <div class="gradient-mesh">
+            <div class="blob" style="width:580px;height:580px;top:-140px;right:-140px;background:#c8d6e8;opacity:0.05;"></div>
+            <div class="blob" style="width:400px;height:400px;bottom:-100px;left:-80px;background:#c8d6e8;opacity:0.14;"></div>
+            <div class="blob" style="width:240px;height:240px;top:35%;left:18%;background:#c8d6e8;opacity:0.03;"></div>
+        </div>
+        <canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+        <div class="content" style="text-align:center;">
+            <!-- Decorative geometric shape instead of emoji -->
+            <div class="reveal" style="width:72px;height:72px;border-radius:50%;background:rgba(200,214,232,0.15);margin:0 auto 1.2rem;animation:float 3s ease-in-out infinite;box-shadow: none;display:flex;align-items:center;justify-content:center;">
+                <div style="width:28px;height:28px;border:2px solid rgba(255,255,255,0.7);border-radius:50%;"></div>
+            </div>
+            <h1 class="reveal glow-pulse" style="font-family:'Noto Serif KR',serif;font-size:clamp(2.8rem,6.5vw,4.8rem);color:#e8edf5;margin-bottom:1rem;">우주는 텅 비어있지 않다</h1>
+            <p class="reveal" style="font-size:1rem;color:#9aa3b2;max-width:620px;margin:0 auto 2rem;line-height:1.85;">중력이 만들어낸 <strong style="color:#c8d6e8;">5개의 평형 지점</strong>, 라그랑주 포인트.<br>우주 탐사의 <strong style="color:#c8d6e8;">전략적 기착지</strong>이자 다음 세대 우주 시대의 <strong style="color:#c8d6e8;">핵심 거점</strong>이다.</p>
+            <div class="reveal" style="display:flex;justify-content:center;gap:1.4rem;flex-wrap:wrap;margin-bottom:2rem;">
+                <div style="background:rgba(200,214,232,0.07);border:1px solid rgba(200,214,232,0.22);border-radius:0;padding:1rem 1.6rem;text-align:center;">
+                    <div style="font-size:1.9rem;font-weight:900;color:#c8d6e8;font-family:'Noto Serif KR',serif;letter-spacing:0.04em;">5개</div>
+                    <div style="font-size:0.7rem;color:#6b7fa8;letter-spacing:0.12em;text-transform:uppercase;margin-top:0.2rem;">라그랑주 포인트</div>
+                </div>
+                <div style="background:rgba(200,214,232,0.07);border:1px solid rgba(200,214,232,0.22);border-radius:0;padding:1rem 1.6rem;text-align:center;">
+                    <div style="font-size:1.9rem;font-weight:900;color:#c8d6e8;font-family:'Noto Serif KR',serif;letter-spacing:0.04em;">150만 km</div>
+                    <div style="font-size:0.7rem;color:#6b7fa8;letter-spacing:0.12em;text-transform:uppercase;margin-top:0.2rem;">지구 — L2 거리</div>
+                </div>
+                <div style="background:rgba(200,214,232,0.07);border:1px solid rgba(200,214,232,0.22);border-radius:0;padding:1rem 1.6rem;text-align:center;">
+                    <div style="font-size:1.9rem;font-weight:900;color:#c8d6e8;font-family:'Noto Serif KR',serif;letter-spacing:0.04em;">L4 · L5</div>
+                    <div style="font-size:0.7rem;color:#6b7fa8;letter-spacing:0.12em;text-transform:uppercase;margin-top:0.2rem;">가장 안정적</div>
+                </div>
+            </div>
+            <div class="reveal" style="display:flex;align-items:center;justify-content:center;gap:1.5rem;">
+                <div style="width:40px;height:1px;background:linear-gradient(90deg,transparent,rgba(200,214,232,0.4));"></div>
+                <p style="font-size:0.75rem;color:#6b7fa8;letter-spacing:0.18em;text-transform:uppercase;">발표자: 김강현 &nbsp;|&nbsp; Joseph-Louis Lagrange, 1772</p>
+                <div style="width:40px;height:1px;background:linear-gradient(90deg,rgba(200,214,232,0.4),transparent);"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- NAVIGATION -->
+<div class="nav-controls">
+    <button class="nav-btn" onclick="changeSlide(-1)">&#8249;</button>
+    <div class="slide-dots" id="dots"></div>
+    <button class="nav-btn" onclick="changeSlide(1)">&#8250;</button>
+    <span class="slide-counter" id="counter">1 / 7</span>
+</div>
+
+<script>
+    let current = 1;
+    const total = document.querySelectorAll('.slide').length;
+    const dotsContainer = document.getElementById('dots');
+    const counter = document.getElementById('counter');
+    for (let i = 1; i <= total; i++) { const dot = document.createElement('div'); dot.className = 'dot' + (i === 1 ? ' active' : ''); dot.onclick = () => goToSlide(i); dotsContainer.appendChild(dot); }
+    function goToSlide(n) {
+        const prev = document.querySelector('.slide.active');
+        const next = document.querySelector(`.slide[data-slide="${n}"]`);
+        if (prev) prev.classList.remove('active');
+        if (next) { next.classList.add('active'); animateSlide(next); }
+        current = n; updateNav();
+    }
+    function changeSlide(dir) { let next = current + dir; if (next < 1) next = total; if (next > total) next = 1; goToSlide(next); }
+    function updateNav() { document.querySelectorAll('.dot').forEach((d, i) => { d.classList.toggle('active', i + 1 === current); }); counter.textContent = current + ' / ' + total; }
+    document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); changeSlide(1); } if (e.key === 'ArrowLeft') { e.preventDefault(); changeSlide(-1); } });
+    let touchStartX = 0;
+    document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+    document.addEventListener('touchend', (e) => { const diff = touchStartX - e.changedTouches[0].clientX; if (Math.abs(diff) > 50) changeSlide(diff > 0 ? 1 : -1); });
+
+    function animateSlide(slide) {
+        slide.querySelectorAll('.reveal').forEach((el, i) => {
+            el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(20px)';
+            el.offsetHeight;
+            const delay = i * 0.08;
+            el.style.transition = `opacity 0.4s ease ${delay}s, transform 0.4s ease ${delay}s`;
+            el.style.opacity = '1'; el.style.transform = 'translateY(0px)';
+        });
+    }
+
+    document.addEventListener('mousemove', (e) => {
+        const s = document.querySelector('.mouse-spotlight');
+        if (s) s.style.background = `radial-gradient(600px circle at ${e.clientX}px ${e.clientY}px, rgba(200,214,232,0.055), transparent 40%)`;
+    });
+
+    window.initParticles = function(canvas, options) {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth || window.innerWidth;
+        canvas.height = canvas.offsetHeight || window.innerHeight;
+        const interactive = options.interactive !== false;
+        const count = options.count || (interactive ? 55 : 18);
+        let mx = -1000, my = -1000;
+        const pts = Array.from({ length: count }, () => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, size: Math.random() * 2.2 + 0.7, alpha: Math.random() * 0.3 + 0.1 }));
+        if (interactive) { canvas.addEventListener('mousemove', (e) => { const r = canvas.getBoundingClientRect(); mx = e.clientX - r.left; my = e.clientY - r.top; }); canvas.addEventListener('mouseleave', () => { mx = -1000; my = -1000; }); }
+        (function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            pts.forEach(p => {
+                if (interactive) { const dx = p.x - mx, dy = p.y - my, d = Math.sqrt(dx*dx+dy*dy); if (d < 120) { const f = (120-d)/120*2; p.vx += (dx/d)*f*0.1; p.vy += (dy/d)*f*0.1; } }
+                p.vx *= 0.98; p.vy *= 0.98; p.x += p.vx; p.y += p.vy;
+                if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(200,214,232,${p.alpha})`; ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        })();
+    };
+    document.querySelectorAll('.particle-canvas').forEach(c => window.initParticles(c, { interactive: true, count: 55 }));
+    document.querySelectorAll('.particle-canvas-ambient').forEach(c => window.initParticles(c, { interactive: false, count: 18 }));
+
+    try { animateSlide(document.querySelector('.slide.active')); } catch(e) {}
+</script>
+</body>
+</html>
